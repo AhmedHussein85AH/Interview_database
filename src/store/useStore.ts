@@ -255,7 +255,7 @@ export const useStore = create<AppState>()(
 
           console.log('إضافة مرشح جديد:', newCandidate.name)
 
-          // إضافة المرشح محلياً (لا يوجد Supabase)
+          // إضافة المرشح محلياً
           const newCandidateData = {
             id: Date.now().toString(),
             ...candidateData,
@@ -285,7 +285,6 @@ export const useStore = create<AppState>()(
           // تحديث الحالة المحلية
           set(state => {
             const newCandidates = [...state.candidates, newCandidateData]
-            // حفظ في localStorage
             localStorage.setItem('interview_candidates', JSON.stringify(newCandidates))
             return {
               candidates: newCandidates,
@@ -296,7 +295,7 @@ export const useStore = create<AppState>()(
             }
           })
 
-          console.log('تم إضافة المرشح بنجاح')
+          console.log('تم إضافة المرشح بنجاح إلى قاعدة البيانات')
         } catch (error) {
           console.error('خطأ في إضافة المرشح:', error)
           throw error
@@ -316,7 +315,6 @@ export const useStore = create<AppState>()(
                 ? { ...candidate, status, offerResult, updatedAt: new Date().toISOString() }
                 : candidate
             )
-            // حفظ في localStorage
             localStorage.setItem('interview_candidates', JSON.stringify(updatedCandidates))
             return { candidates: updatedCandidates }
           })
@@ -340,19 +338,25 @@ export const useStore = create<AppState>()(
         if (!currentUser || currentUser.userType !== 'admin') return
 
         try {
-          // حذف محلياً
-          set(state => {
-            const updatedCandidates = state.candidates.filter(candidate => candidate.id !== id)
-            // حفظ في localStorage
-            localStorage.setItem('interview_candidates', JSON.stringify(updatedCandidates))
-            return {
-              candidates: updatedCandidates,
-              stats: {
-                ...state.stats,
-                totalCandidates: Math.max(0, state.stats.totalCandidates - 1)
-              }
+          // حذف من Supabase
+          const { error } = await supabase
+            .from('candidates')
+            .delete()
+            .eq('id', id)
+
+          if (error) {
+            console.error('خطأ في حذف المرشح:', error)
+            throw error
+          }
+
+          // تحديث الحالة المحلية
+          set(state => ({
+            candidates: state.candidates.filter(candidate => candidate.id !== id),
+            stats: {
+              ...state.stats,
+              totalCandidates: Math.max(0, state.stats.totalCandidates - 1)
             }
-          })
+          }))
         } catch (error) {
           console.error('خطأ في حذف المرشح:', error)
           throw error
@@ -376,20 +380,22 @@ export const useStore = create<AppState>()(
             interviewer: currentUser.name
           }
 
-          // إضافة المقابلة محلياً
-          const newInterviewData: Interview = {
-            id: Date.now().toString(),
-            ...interviewData,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
+          // إضافة إلى Supabase
+          const { data, error } = await supabase
+            .from('interviews')
+            .insert([newInterview])
+            .select()
+            .single()
+
+          if (error) {
+            console.error('خطأ في إضافة المقابلة:', error)
+            throw error
           }
-          
+
           // تحديث الحالة المحلية
-          set(state => {
-            const updatedInterviews = [...state.interviews, newInterviewData]
-            localStorage.setItem('interview_interviews', JSON.stringify(updatedInterviews))
-            return { interviews: updatedInterviews }
-          })
+          set(state => ({
+            interviews: [...state.interviews, data]
+          }))
         } catch (error) {
           console.error('خطأ في إضافة المقابلة:', error)
           throw error
@@ -398,15 +404,13 @@ export const useStore = create<AppState>()(
 
       // تحديث مقابلة
       updateInterview: (id, updates) => {
-        set(state => {
-          const updatedInterviews = state.interviews.map(interview =>
+        set(state => ({
+          interviews: state.interviews.map(interview =>
             interview.id === id
               ? { ...interview, ...updates, updatedAt: new Date().toISOString() }
               : interview
           )
-          localStorage.setItem('interview_interviews', JSON.stringify(updatedInterviews))
-          return { interviews: updatedInterviews }
-        })
+        }))
       },
 
       // حذف مقابلة
@@ -414,11 +418,9 @@ export const useStore = create<AppState>()(
         const { currentUser } = get()
         if (!currentUser || currentUser.userType !== 'admin') return
 
-        set(state => {
-          const updatedInterviews = state.interviews.filter(interview => interview.id !== id)
-          localStorage.setItem('interview_interviews', JSON.stringify(updatedInterviews))
-          return { interviews: updatedInterviews }
-        })
+        set(state => ({
+          interviews: state.interviews.filter(interview => interview.id !== id)
+        }))
       },
 
       // الحصول على المرشحين حسب الحالة
@@ -473,25 +475,34 @@ export const useStore = create<AppState>()(
               previous_rejection_date: candidate.previousRejectionDate || null
             }
 
-            // تحديث في Supabase
-            const { data, error } = await supabase
-              .from('saved_candidates')
-              .update(updatedCandidate)
-              .eq('id', existingCandidate.id)
-              .select()
-              .single()
-
-            if (error) {
-              console.error('خطأ في تحديث المرشح:', error)
-              throw error
+            // تحديث محلياً
+            const updatedSavedCandidate: SavedCandidate = {
+              ...existingCandidate,
+              name: candidate.name,
+              nationalId: candidate.nationalId,
+              birthDate: candidate.birthDate,
+              governorate: candidate.governorate,
+              qualification: candidate.qualification,
+              maritalStatus: candidate.maritalStatus,
+              securityCompany: candidate.securityCompany,
+              position: candidate.position,
+              offerDate: candidate.offerDate,
+              finalResult,
+              decisionDate: new Date().toISOString(),
+              decisionBy: currentUser.name,
+              notes: notes || '',
+              workShift: workShift,
+              exclusionReason: exclusionReason || '',
+              resignationReason: resignationReason || ''
             }
 
-            // تحديث الحالة المحلية
-            set(state => ({
-              savedCandidates: state.savedCandidates.map(saved =>
-                saved.id === existingCandidate.id ? data : saved
+            set(state => {
+              const updated = state.savedCandidates.map(saved =>
+                saved.id === existingCandidate.id ? updatedSavedCandidate : saved
               )
-            }))
+              localStorage.setItem('interview_savedCandidates', JSON.stringify(updated))
+              return { savedCandidates: updated }
+            })
 
             console.log('تم تحديث المرشح الموجود بدلاً من إنشاء سجل جديد')
           } else {
@@ -541,7 +552,6 @@ export const useStore = create<AppState>()(
               createdAt: new Date().toISOString()
             }
 
-            // تحديث الحالة المحلية
             set(state => {
               const updated = [...state.savedCandidates, newSavedCandidate]
               localStorage.setItem('interview_savedCandidates', JSON.stringify(updated))
@@ -584,12 +594,21 @@ export const useStore = create<AppState>()(
         if (!currentUser || currentUser.userType !== 'admin') return
 
         try {
-          // حذف محلياً
-          set(state => {
-            const updated = state.savedCandidates.filter(candidate => candidate.id !== id)
-            localStorage.setItem('interview_savedCandidates', JSON.stringify(updated))
-            return { savedCandidates: updated }
-          })
+          // حذف من Supabase
+          const { error } = await supabase
+            .from('saved_candidates')
+            .delete()
+            .eq('id', id)
+
+          if (error) {
+            console.error('خطأ في حذف المرشح المحفوظ:', error)
+            throw error
+          }
+
+          // تحديث الحالة المحلية
+          set(state => ({
+            savedCandidates: state.savedCandidates.filter(candidate => candidate.id !== id)
+          }))
 
           console.log('تم حذف المرشح من قاعدة البيانات المحفوظة')
         } catch (error) {
@@ -743,36 +762,13 @@ export const useStore = create<AppState>()(
         }
       },
 
-      // تحميل البيانات من localStorage
+      // تحميل البيانات المحلية - لا يوجد Supabase
       loadDataFromSupabase: async () => {
         try {
           console.log('تحميل البيانات المحلية...')
+          // البيانات ستكون فارغة في البداية - localStorage فقط
           
-          // تحميل المرشحين
-          const candidatesData = localStorage.getItem('interview_candidates')
-          if (candidatesData) {
-            set({ candidates: JSON.parse(candidatesData) })
-          }
-          
-          // تحميل المقابلات
-          const interviewsData = localStorage.getItem('interview_interviews')
-          if (interviewsData) {
-            set({ interviews: JSON.parse(interviewsData) })
-          }
-          
-          // تحميل المرشحين المحفوظين
-          const savedCandidatesData = localStorage.getItem('interview_savedCandidates')
-          if (savedCandidatesData) {
-            set({ savedCandidates: JSON.parse(savedCandidatesData) })
-          }
-          
-          // تحميل الإشعارات
-          const notificationsData = localStorage.getItem('interview_notifications')
-          if (notificationsData) {
-            set({ notifications: JSON.parse(notificationsData) })
-          }
-          
-          console.log('تم تحميل البيانات من localStorage')
+          console.log('تم تحميل البيانات المحلية')
         } catch (error) {
           console.error('خطأ في تحميل البيانات:', error)
         }
@@ -856,18 +852,19 @@ export const useStore = create<AppState>()(
         console.log('المستخدمون المتاحون:', demoUsers.map(u => u.email))
       },
 
-      // هذه الوظيفة فارغة
+      // لا يوجد Supabase - هذه الوظيفة فارغة
       loadUsersFromSupabase: async () => {
         // لا يوجد Supabase
       },
 
+      // لا يوجد Supabase
       addUserToSupabase: async (user) => {
         // فارغ - لا يوجد Supabase
       },
 
-      // هذه الوظيفة فارغة
+      // لا يوجد Supabase  
       updateUserRoleInSupabase: async (id, userType) => {
-        // فارغ
+        // فارغ - لا يوجد Supabase
       },
 
   // إضافة عدة مرشحين من ملف Excel

@@ -151,8 +151,8 @@ const DatabasePage: React.FC = () => {
     if (candidate) {
       try {
         // تحديث الحالة المحلية
-        set(state => ({
-          savedCandidates: state.savedCandidates.map(saved =>
+        set(state => {
+          const updated = state.savedCandidates.map(saved =>
             saved.id === candidate.id ? {
               ...saved,
               finalResult: 'مستبعد' as const,
@@ -161,7 +161,9 @@ const DatabasePage: React.FC = () => {
               decisionBy: currentUser?.name || 'مدير النظام'
             } : saved
           )
-        }))
+          localStorage.setItem('interview_savedCandidates', JSON.stringify(updated))
+          return { savedCandidates: updated }
+        })
 
         alert('تم استبعاد المرشح بنجاح')
         setShowExclusionModal(false)
