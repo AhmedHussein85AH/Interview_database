@@ -152,22 +152,49 @@ export interface AppState {
   set: (partial: Partial<AppState> | ((state: AppState) => Partial<AppState>)) => void
   }
 
-// إنشاء المتجر - بدون تخزين محلي
-export const useStore = create<AppState>()(
-  (set, get) => ({
-      // البيانات الأولية
-      users: [],
-      currentUser: null,
+// تحميل البيانات الأولية من localStorage
+const loadInitialState = () => {
+  try {
+    const candidates = localStorage.getItem('interview_candidates')
+    const interviews = localStorage.getItem('interview_interviews')
+    const savedCandidates = localStorage.getItem('interview_savedCandidates')
+      const notifications = localStorage.getItem('interview_notifications')
+    
+    return {
+      candidates: candidates ? JSON.parse(candidates) : [],
+      savedCandidates: savedCandidates ? JSON.parse(savedCandidates) : [],
+      notifications: notifications ? JSON.parse(notifications) : [],
+      interviews: interviews ? JSON.parse(interviews) : []
+    }
+  } catch (error) {
+    console.error('Error loading initial state:', error)
+    return {
       candidates: [],
       savedCandidates: [],
       notifications: [],
-      interviews: [],
+      interviews: []
+    }
+  }
+}
+
+const initialState = loadInitialState()
+
+// إنشاء المتجر مع البيانات المحملة
+export const useStore = create<AppState>()(
+  (set, get) => ({
+      // البيانات الأولية المحملة من localStorage
+      users: [],
+      currentUser: null,
+      candidates: initialState.candidates,
+      savedCandidates: initialState.savedCandidates,
+      notifications: initialState.notifications,
+      interviews: initialState.interviews,
       stats: {
-        totalCandidates: 0,
-        pendingInterviews: 0,
-        completedInterviews: 0,
-        hiredCandidates: 0,
-        rejectedCandidates: 0
+        totalCandidates: initialState.candidates.length,
+        pendingInterviews: initialState.interviews.filter((i: Interview) => i.status === 'مجدولة').length,
+        completedInterviews: initialState.interviews.filter((i: Interview) => i.status === 'مكتملة').length,
+        hiredCandidates: initialState.savedCandidates.filter((c: SavedCandidate) => c.finalResult === 'مقبول').length,
+        rejectedCandidates: initialState.savedCandidates.filter((c: SavedCandidate) => c.finalResult === 'مرفوض').length
       },
       isLoading: false,
       isInitialized: false,
@@ -338,25 +365,18 @@ export const useStore = create<AppState>()(
         if (!currentUser || currentUser.userType !== 'admin') return
 
         try {
-          // حذف من Supabase
-          const { error } = await supabase
-            .from('candidates')
-            .delete()
-            .eq('id', id)
-
-          if (error) {
-            console.error('خطأ في حذف المرشح:', error)
-            throw error
-          }
-
-          // تحديث الحالة المحلية
-          set(state => ({
-            candidates: state.candidates.filter(candidate => candidate.id !== id),
-            stats: {
-              ...state.stats,
-              totalCandidates: Math.max(0, state.stats.totalCandidates - 1)
+          // حذف محلياً
+          set(state => {
+            const updatedCandidates = state.candidates.filter(candidate => candidate.id !== id)
+            localStorage.setItem('interview_candidates', JSON.stringify(updatedCandidates))
+            return {
+              candidates: updatedCandidates,
+              stats: {
+                ...state.stats,
+                totalCandidates: Math.max(0, state.stats.totalCandidates - 1)
+              }
             }
-          }))
+          })
         } catch (error) {
           console.error('خطأ في حذف المرشح:', error)
           throw error
@@ -380,22 +400,20 @@ export const useStore = create<AppState>()(
             interviewer: currentUser.name
           }
 
-          // إضافة إلى Supabase
-          const { data, error } = await supabase
-            .from('interviews')
-            .insert([newInterview])
-            .select()
-            .single()
-
-          if (error) {
-            console.error('خطأ في إضافة المقابلة:', error)
-            throw error
+          // إضافة المقابلة محلياً
+          const newInterviewData: Interview = {
+            id: Date.now().toString(),
+            ...interviewData,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
           }
-
+          
           // تحديث الحالة المحلية
-          set(state => ({
-            interviews: [...state.interviews, data]
-          }))
+          set(state => {
+            const updatedInterviews = [...state.interviews, newInterviewData]
+            localStorage.setItem('interview_interviews', JSON.stringify(updatedInterviews))
+            return { interviews: updatedInterviews }
+          })
         } catch (error) {
           console.error('خطأ في إضافة المقابلة:', error)
           throw error
