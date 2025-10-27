@@ -1,4 +1,5 @@
 # نظام إدارة المقابلات | Interview Management System
+<img width="1913" height="792" alt="image" src="https://github.com/user-attachments/assets/cc6a4d95-bb83-4588-8463-3a12efc080e8" />
 
 ## 📋 نظرة عامة
 
