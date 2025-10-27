@@ -14,7 +14,7 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const navigate = useNavigate()
-  const { setAuthenticated, setCurrentUser } = useStore()
+  const { login } = useStore()
 
   // تحميل البيانات المحفوظة عند تحميل الصفحة
   useEffect(() => {
@@ -44,22 +44,21 @@ export default function Login() {
       localStorage.removeItem('rememberMe')
     }
 
-    // Simulate login process
-    setTimeout(() => {
-      const user = {
-        id: 'demo-user-1',
-        name: 'John Doe',
-        email: email || 'john@company.com',
-        role: 'admin' as const,
-        department: 'Human Resources',
-        avatar: undefined,
-        isActive: true,
-      }
+    try {
+      // استخدام دالة تسجيل الدخول من المتجر
+      const success = await login(email, password)
       
-      setCurrentUser(user)
-      setAuthenticated(true)
-      navigate('/dashboard')
-    }, 1000)
+      if (success) {
+        navigate('/dashboard')
+      } else {
+        alert('بيانات الدخول غير صحيحة! يرجى استخدام إحدى الحسابات التجريبية أدناه.')
+        setIsLoading(false)
+      }
+    } catch (error) {
+      console.error('Login error:', error)
+      alert('حدث خطأ أثناء تسجيل الدخول. يرجى المحاولة مرة أخرى.')
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -193,11 +192,26 @@ export default function Login() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.6 }}
-              className="mt-6 text-center text-sm text-muted-foreground"
+              className="mt-6 text-center text-sm space-y-2"
             >
-              <p>Demo credentials:</p>
-              <p className="font-medium">Email: any@email.com</p>
-              <p className="font-medium">Password: any password</p>
+              <p className="font-semibold text-foreground mb-3">بيانات الدخول التجريبية:</p>
+              <div className="space-y-2 text-xs">
+                <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg">
+                  <p className="font-semibold text-blue-700 dark:text-blue-300">مدير الأمن</p>
+                  <p className="text-blue-600 dark:text-blue-400">interview@company.com</p>
+                  <p className="text-blue-600 dark:text-blue-400">Man@135$</p>
+                </div>
+                <div className="bg-green-50 dark:bg-green-950 p-3 rounded-lg">
+                  <p className="font-semibold text-green-700 dark:text-green-300">موظف أمن</p>
+                  <p className="text-green-600 dark:text-green-400">security@company.com</p>
+                  <p className="text-green-600 dark:text-green-400">Sec@135$</p>
+                </div>
+                <div className="bg-purple-50 dark:bg-purple-950 p-3 rounded-lg">
+                  <p className="font-semibold text-purple-700 dark:text-purple-300">المدير العام</p>
+                  <p className="text-purple-600 dark:text-purple-400">admin@company.com</p>
+                  <p className="text-purple-600 dark:text-purple-400">Adm@135$</p>
+                </div>
+              </div>
             </motion.div>
           </CardContent>
         </Card>

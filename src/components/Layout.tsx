@@ -119,7 +119,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             © 2024 Ahmed Hussein - Security Coordinator. All rights reserved.
           </div>
           <div style={{ color: '#bdc3c7', fontSize: '11px' }}>
-            نظام إدارة المقابلات مراسي | Marassi Interview Management System
+            نظام إدارة المقابلات | Interview Management System
           </div>
         </footer>
       </div>

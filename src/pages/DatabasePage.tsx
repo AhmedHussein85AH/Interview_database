@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useStore } from '../store/useStore'
 import ProtectedLayout from '../components/ProtectedLayout'
-import { supabase } from '../integrations/supabase/client'
 
 const DatabasePage: React.FC = () => {
   const { 
@@ -151,46 +150,15 @@ const DatabasePage: React.FC = () => {
     const candidate = savedCandidates.find(c => c.id === selectedCandidateId)
     if (candidate) {
       try {
-        // تحديث المرشح المحفوظ مباشرة في Supabase
-        const { data, error } = await supabase
-          .from('saved_candidates')
-          .update({
-            final_result: 'مستبعد',
-            exclusion_reason: exclusionReason,
-            decision_date: new Date().toISOString(),
-            decision_by: currentUser?.name || 'مدير النظام'
-          })
-          .eq('id', candidate.id)
-          .select()
-          .single()
-
-        if (error) {
-          console.error('خطأ في تحديث المرشح:', error)
-          throw error
-        }
-
-        // تحديث الحالة المحلية - تحويل البيانات من snake_case إلى camelCase
+        // تحديث الحالة المحلية
         set(state => ({
           savedCandidates: state.savedCandidates.map(saved =>
             saved.id === candidate.id ? {
-              id: data.id,
-              name: data.name,
-              nationalId: data.national_id,
-              birthDate: data.birth_date,
-              governorate: data.governorate,
-              qualification: data.qualification,
-              maritalStatus: data.marital_status,
-              securityCompany: data.security_company,
-              offerDate: data.offer_date,
-              finalResult: data.final_result,
-              decisionDate: data.decision_date,
-              decisionBy: data.decision_by,
-              notes: data.notes,
-              exclusionReason: data.exclusion_reason,
-              resignationReason: data.resignation_reason,
-              isRejectedBefore: data.is_rejected_before,
-              previousRejectionDate: data.previous_rejection_date,
-              createdAt: data.created_at
+              ...saved,
+              finalResult: 'مستبعد' as const,
+              exclusionReason,
+              decisionDate: new Date().toISOString(),
+              decisionBy: currentUser?.name || 'مدير النظام'
             } : saved
           )
         }))
@@ -214,46 +182,15 @@ const DatabasePage: React.FC = () => {
     const candidate = savedCandidates.find(c => c.id === selectedCandidateId)
     if (candidate) {
       try {
-        // تحديث المرشح المحفوظ مباشرة في Supabase
-        const { data, error } = await supabase
-          .from('saved_candidates')
-          .update({
-            final_result: 'استقالة',
-            resignation_reason: resignationReason,
-            decision_date: new Date().toISOString(),
-            decision_by: currentUser?.name || 'مدير النظام'
-          })
-          .eq('id', candidate.id)
-          .select()
-          .single()
-
-        if (error) {
-          console.error('خطأ في تحديث المرشح:', error)
-          throw error
-        }
-
-        // تحديث الحالة المحلية - تحويل البيانات من snake_case إلى camelCase
+        // تحديث الحالة المحلية
         set(state => ({
           savedCandidates: state.savedCandidates.map(saved =>
             saved.id === candidate.id ? {
-              id: data.id,
-              name: data.name,
-              nationalId: data.national_id,
-              birthDate: data.birth_date,
-              governorate: data.governorate,
-              qualification: data.qualification,
-              maritalStatus: data.marital_status,
-              securityCompany: data.security_company,
-              offerDate: data.offer_date,
-              finalResult: data.final_result,
-              decisionDate: data.decision_date,
-              decisionBy: data.decision_by,
-              notes: data.notes,
-              exclusionReason: data.exclusion_reason,
-              resignationReason: data.resignation_reason,
-              isRejectedBefore: data.is_rejected_before,
-              previousRejectionDate: data.previous_rejection_date,
-              createdAt: data.created_at
+              ...saved,
+              finalResult: 'استقالة' as const,
+              resignationReason,
+              decisionDate: new Date().toISOString(),
+              decisionBy: currentUser?.name || 'مدير النظام'
             } : saved
           )
         }))

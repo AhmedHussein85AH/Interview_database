@@ -255,15 +255,18 @@ export const useStore = create<AppState>()(
 
           console.log('إضافة مرشح جديد:', newCandidate.name)
 
-          // إضافة المرشح محلياً (لا يوجد Supabase)
-          const newCandidateData = {
-            id: Date.now().toString(),
-            ...candidateData,
-            status: 'جديد' as const,
-            offerResult: 'في انتظار' as const,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            createdBy: currentUser.name
+          // إضافة المرشح إلى Supabase
+          const { data, error } = await supabase
+            .from('candidates')
+            .insert([newCandidate])
+            .select()
+            .single()
+
+          if (error) {
+            console.error('خطأ في إضافة المرشح:', error)
+            console.error('تفاصيل الخطأ:', error.message)
+            console.error('كود الخطأ:', error.code)
+            throw error
           }
 
           // إضافة الإشعار إذا كان مرفوض من قبل
@@ -272,19 +275,19 @@ export const useStore = create<AppState>()(
               type: 'rejected_before' as const,
               title: 'مرشح مرفوض من قبل',
               message: `تم تسجيل مرشح جديد (${candidateData.name}) تم رفضه من قبل في ${rejectedBefore.decisionDate}`,
-              candidateId: newCandidateData.id,
-              candidateName: candidateData.name,
-              isRead: false,
-              id: Date.now().toString(),
-              createdAt: new Date().toISOString()
+              candidate_id: data.id,
+              candidate_name: candidateData.name,
+              is_read: false
             }
-            
-            get().addNotification(notification)
+
+            await supabase
+              .from('notifications')
+              .insert([notification])
           }
 
           // تحديث الحالة المحلية
           set(state => ({
-            candidates: [...state.candidates, newCandidateData],
+            candidates: [...state.candidates, data],
             stats: {
               ...state.stats,
               totalCandidates: state.stats.totalCandidates + 1
@@ -304,7 +307,22 @@ export const useStore = create<AppState>()(
         if (!currentUser || currentUser.userType === 'security_employee') return
 
         try {
-          // تحديث محلياً فقط
+          // تحديث في Supabase
+          const { error } = await supabase
+            .from('candidates')
+            .update({
+              status,
+              offer_result: offerResult,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', id)
+
+          if (error) {
+            console.error('خطأ في تحديث حالة المرشح:', error)
+            throw error
+          }
+
+          // تحديث الحالة المحلية
           set(state => ({
             candidates: state.candidates.map(candidate =>
               candidate.id === id
@@ -824,18 +842,71 @@ export const useStore = create<AppState>()(
         console.log('المستخدمون المتاحون:', demoUsers.map(u => u.email))
       },
 
-      // هذه الوظيفة فارغة
+      // لا يوجد Supabase - هذه الوظيفة فارغة
       loadUsersFromSupabase: async () => {
-        // لا يوجد Supabase
+        try {
+          // لا يوجد Supabase
+            .from('users')
+            .select('id, name, email, user_type, department, created_at')
+            .order('created_at', { ascending: false })
+          
+          if (!error && data) {
+            const mapped: User[] = data.map(u => ({
+              id: u.id,
+              name: u.name,
+              email: u.email,
+              userType: u.user_type as UserType,
+              department: u.department,
+              createdAt: u.created_at
+            }))
+            set({ users: mapped })
+          }
+        } catch (error) {
+          console.error('خطأ في تحميل المستخدمين:', error)
+        }
       },
 
+      // لا يوجد Supabase
       addUserToSupabase: async (user) => {
-        // فارغ - لا يوجد Supabase
+        // فارغ
+          .from('users')
+          .insert([{ 
+            name: user.name, 
+            email: user.email, 
+            user_type: user.userType, 
+            department: user.department 
+          }])
+          .select('id, name, email, user_type, department, created_at')
+          .single()
+        
+        if (error) throw error
+        
+        const mapped: User = {
+          id: data.id,
+          name: data.name,
+          email: data.email,
+          userType: data.user_type as UserType,
+          department: data.department,
+          createdAt: data.created_at
+        }
+        
+        set(state => ({ users: [mapped, ...state.users] }))
       },
 
-      // هذه الوظيفة فارغة
+      // لا يوجد Supabase  
       updateUserRoleInSupabase: async (id, userType) => {
         // فارغ
+          .from('users')
+          .update({ user_type: userType })
+          .eq('id', id)
+        
+        if (error) throw error
+        
+        set(state => ({ 
+          users: state.users.map(u => 
+            u.id === id ? { ...u, userType } : u
+          ) 
+        }))
       },
 
   // إضافة عدة مرشحين من ملف Excel
