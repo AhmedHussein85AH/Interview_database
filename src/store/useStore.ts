@@ -612,21 +612,12 @@ export const useStore = create<AppState>()(
         if (!currentUser || currentUser.userType !== 'admin') return
 
         try {
-          // حذف من Supabase
-          const { error } = await supabase
-            .from('saved_candidates')
-            .delete()
-            .eq('id', id)
-
-          if (error) {
-            console.error('خطأ في حذف المرشح المحفوظ:', error)
-            throw error
-          }
-
-          // تحديث الحالة المحلية
-          set(state => ({
-            savedCandidates: state.savedCandidates.filter(candidate => candidate.id !== id)
-          }))
+          // حذف محلياً
+          set(state => {
+            const updated = state.savedCandidates.filter(candidate => candidate.id !== id)
+            localStorage.setItem('interview_savedCandidates', JSON.stringify(updated))
+            return { savedCandidates: updated }
+          })
 
           console.log('تم حذف المرشح من قاعدة البيانات المحفوظة')
         } catch (error) {
@@ -641,21 +632,12 @@ export const useStore = create<AppState>()(
         if (!currentUser || currentUser.userType !== 'admin') return
 
         try {
-          // حذف من Supabase
-          const { error } = await supabase
-            .from('saved_candidates')
-            .delete()
-            .in('id', ids)
-
-          if (error) {
-            console.error('خطأ في حذف المرشحين المحفوظين:', error)
-            throw error
-          }
-
-          // تحديث الحالة المحلية
-          set(state => ({
-            savedCandidates: state.savedCandidates.filter(candidate => !ids.includes(candidate.id))
-          }))
+          // حذف محلياً
+          set(state => {
+            const updated = state.savedCandidates.filter(candidate => !ids.includes(candidate.id))
+            localStorage.setItem('interview_savedCandidates', JSON.stringify(updated))
+            return { savedCandidates: updated }
+          })
 
           console.log(`تم حذف ${ids.length} مرشح من قاعدة البيانات المحفوظة`)
         } catch (error) {
@@ -706,21 +688,12 @@ export const useStore = create<AppState>()(
           })
 
           if (duplicatesToRemove.length > 0) {
-            // حذف البيانات المكررة من Supabase
-            const { error } = await supabase
-              .from('saved_candidates')
-              .delete()
-              .in('id', duplicatesToRemove)
-
-            if (error) {
-              console.error('خطأ في حذف البيانات المكررة:', error)
-              throw error
-            }
-
-            // تحديث الحالة المحلية
-            set(state => ({
-              savedCandidates: state.savedCandidates.filter(candidate => !duplicatesToRemove.includes(candidate.id))
-            }))
+            // حذف البيانات المكررة محلياً
+            set(state => {
+              const updated = state.savedCandidates.filter(candidate => !duplicatesToRemove.includes(candidate.id))
+              localStorage.setItem('interview_savedCandidates', JSON.stringify(updated))
+              return { savedCandidates: updated }
+            })
 
             console.log(`تم حذف ${duplicatesToRemove.length} سجل مكرر بنجاح`)
             return duplicatesToRemove.length
@@ -947,39 +920,36 @@ export const useStore = create<AppState>()(
             continue
           }
 
-          // إضافة المرشح المحفوظ مباشرة إلى Supabase
-          const { data, error } = await supabase
-            .from('saved_candidates')
-            .insert([{
-              name: candidateData.name,
-              national_id: candidateData.nationalId,
-              birth_date: candidateData.birthDate,
-              governorate: candidateData.governorate,
-              qualification: candidateData.qualification,
-              marital_status: candidateData.maritalStatus,
-              security_company: candidateData.securityCompany,
-              position: candidateData.position || null,
-              offer_date: candidateData.offerDate,
-              final_result: candidateData.finalResult,
-              decision_date: candidateData.decisionDate,
-              decision_by: candidateData.decisionBy,
-              notes: candidateData.notes || null,
-              is_rejected_before: candidateData.isRejectedBefore,
-              previous_rejection_date: candidateData.previousRejectionDate || null
-            }])
-            .select()
-            .single()
-
-          if (error) {
-            errors.push(`خطأ في إضافة ${candidateData.name}: ${error.message}`)
-            failedCount++
-            continue
+          // إضافة المرشح المحفوظ محلياً
+          const newSavedCandidate: SavedCandidate = {
+            id: Date.now().toString(),
+            name: candidateData.name,
+            nationalId: candidateData.nationalId,
+            birthDate: candidateData.birthDate,
+            governorate: candidateData.governorate,
+            qualification: candidateData.qualification,
+            maritalStatus: candidateData.maritalStatus,
+            securityCompany: candidateData.securityCompany,
+            position: candidateData.position,
+            offerDate: candidateData.offerDate,
+            finalResult: candidateData.finalResult,
+            decisionDate: candidateData.decisionDate,
+            decisionBy: candidateData.decisionBy,
+            notes: candidateData.notes || '',
+            workShift: candidateData.workShift,
+            exclusionReason: candidateData.exclusionReason || '',
+            resignationReason: candidateData.resignationReason || '',
+            isRejectedBefore: candidateData.isRejectedBefore,
+            previousRejectionDate: candidateData.previousRejectionDate,
+            createdAt: new Date().toISOString()
           }
 
           // تحديث الحالة المحلية
-          set(state => ({
-            savedCandidates: [...state.savedCandidates, data]
-          }))
+          set(state => {
+            const updated = [...state.savedCandidates, newSavedCandidate]
+            localStorage.setItem('interview_savedCandidates', JSON.stringify(updated))
+            return { savedCandidates: updated }
+          })
 
           successCount++
         } catch (error) {
