@@ -80,12 +80,7 @@ cp env.example .env
 
 ثم أضف قيم متغيرات البيئة في ملف `.env`:
 ```env
-# كلمات مرور المستخدمين
-VITE_SECURITY_EMPLOYEE_PASSWORD=Sec@135$
-VITE_INTERVIEW_MANAGER_PASSWORD=Man@135$
-VITE_ADMIN_PASSWORD=Adm@135$
-
-# إعدادات Supabase
+## إعدادات Supabase
 VITE_SUPABASE_URL=https://your-project-id.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key-here
 ```
@@ -116,7 +111,7 @@ http://localhost:8080
 - **نوع المستخدم**: موظف
 - **الصلاحيات**: إدخال بيانات المرشحين فقط
 
-### أحمد حسين - الأدمن
+###  - الأدمن
 - **البريد الإلكتروني**: `admin@company.com`
 - **كلمة المرور**: [محمية بمتغيرات البيئة]
 - **القسم**: إدارة أمن اعمار مراسي
